@@ -1,0 +1,14 @@
+@import 'variables';
+
+.header {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-between;
+
+    padding: 15px 20px;
+
+    &-title {
+        font-weight: $bold700;
+    }
+
+}
