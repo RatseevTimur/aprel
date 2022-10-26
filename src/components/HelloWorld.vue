@@ -43,16 +43,30 @@
     <div class="products-container flex-col-md-9">
 
       <div class="filters">
+        <button @click="prevPage">
+          Previous
+        </button>
+        <button @click="nextPage">
+          Next
+        </button>
+        
+        <input v-model="search" v-on:keyup.enter="onEnter()">
+        <button @click="onEnter()">&#128269;</button>
+
         <select v-model="selectedProducts" class="filter">
           <option>по порядку</option>
           <option>по возрастанию цен</option>
           <option>по убыванию цен</option>
           <option>по наименованию</option>
         </select>
+
+        <select v-model="categoria" @change="onSelect()" class="filter">
+          <option v-for="categoria in productsCategories" :value="categoria">{{ categoria }}</option>
+        </select>
       </div>
 
       <div class="products-grid">
-        
+    
         <div v-for="product in sorting()"
         :key="product.id" class="product-container">
           <div class="product">
@@ -63,11 +77,11 @@
           <b class="h-description"> {{ product.title }} </b>
           <textarea class="description" v-model="product.description" disabled/> 
           <b class="price">{{ product.price }} ₽ </b>
-          <b class="rating"> &#9733 {{ product.rating }}  </b>
+          <b class="rating"> &#9733; {{ product.rating }}  </b>
           </div>
         </div>
-        
       </div>
+
     </div>
 
   </div>
@@ -88,9 +102,33 @@ export default {
       img: null,
       price: null,
       selectedProducts: "по порядку",
+      search: "",
+      pageNumber: 0,
+      productsCategories: [],
+      categoria: ""
     };
   },
   methods: {
+    async onEnter(){
+      const response = await fetch('https://dummyjson.com/products/search?q='+this.search);
+      const data = await response.json();
+      this.products = data.products;
+      console.log(this.products)
+      this.search = ""
+    },
+     async onSelect(){
+      const response = await fetch('https://dummyjson.com/products/category/'+this.categoria);
+      const data = await response.json();
+      this.products = data.products;
+      console.log(this.products)
+    },
+    paginateNum(){},
+    nextPage(){
+        this.pageNumber++;
+    },
+    prevPage(){
+      this.pageNumber--;
+    },
     createNewId() {
       let maxId = Math.max(...this.products.map((i) => i.id)); //Определяет максимальный id в массиве
       let newId = maxId > 0 ? maxId + 1 : 1; //Добавляет 1 к максимальному id, если же массив пуст, выводит 1
@@ -152,16 +190,6 @@ export default {
     },
   },
   mounted() {
-
-    /*fetch('https://dummyjson.com/products')
-      .then(function (response) {
-        return response.json()
-      })
-      .then(function (data) {
-        this.products = data.products
-        console.log(products)
-      })*/
-
     this.products =
       JSON.parse(localStorage.getItem("products")) || this.products;
   },
@@ -174,12 +202,27 @@ export default {
     addButtonActive: function () {
       return this.name && this.img && this.price;
     },
+    pageCount(){
+      let l = this.products.length,
+          s = this.size;
+      return Math.ceil(l/s);
+    },
+    paginatedData(){
+    const start = this.pageNumber * this.size,
+        end = start + this.size;
+      return this.products.slice(start, end);
+    }
   },
   async created() {
-    const response = await fetch("https://dummyjson.com/products");
+    const response = await fetch('https://dummyjson.com/products/search?q='+this.search);
     const data = await response.json();
     this.products = data.products;
     console.log(this.products)
+
+    const responseCategories = await fetch('https://dummyjson.com/products/categories')
+    const dataCategories = await responseCategories.json();
+    this.productsCategories = dataCategories;
+    console.log(this.productsCategories)
   }
 };
 </script>
@@ -225,6 +268,13 @@ export default {
       }
     }
   }
+}
+
+select{
+  margin-right: 15px;
+}
+button{
+  margin: 0px 10px 0px 10px;
 }
 /*//////////////////////////////////////*/
 .forma {

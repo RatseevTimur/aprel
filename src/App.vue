@@ -1,8 +1,8 @@
 <template>
   <div id="app">
     <nav>
-      <router-link to="/">Products</router-link> |
-      <router-link to="/about">Profile</router-link>
+      <router-link to="/">Products</router-link> &#128230;<br>
+      <router-link to="/about">Profile</router-link> &#128100;
     </nav>
     <router-view />
   </div>
@@ -18,7 +18,10 @@
 }
 
 nav {
-  padding: 30px;
+  position: relative;
+  text-align: end;
+  width: 90%;
+  padding: 15px;
 
   a {
     font-weight: bold;
