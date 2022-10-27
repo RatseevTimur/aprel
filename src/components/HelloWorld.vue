@@ -43,33 +43,42 @@
     <div class="products-container flex-col-md-9">
 
       <div class="filters">
-        <button @click="prevPage">
-          Previous
-        </button>
-        <button @click="nextPage">
-          Next
-        </button>
+        <div class="pagination">
+          <button @click="prevPage">
+            Previous
+          </button>
+          <button @click="nextPage">
+            Next
+          </button>
+
+          {{ skip/10 + 1 }} / {{ productsInfo.total/10 }}
+        </div>
         
-        <input v-model="search" v-on:keyup.enter="onEnter()">
-        <button @click="onEnter()">&#128269;</button>
+        <div class="search">
+          <input v-model="search" v-on:keyup.enter="onEnter()">
+          <button @click="onEnter()">&#128269;</button>
+        </div>
+        
+        <div class="select-block">
+          <select v-model="selectedProducts" class="filter">
+            <option>по порядку</option>
+            <option>по возрастанию цен</option>
+            <option>по убыванию цен</option>
+            <option>по наименованию</option>
+          </select>
 
-        <select v-model="selectedProducts" class="filter">
-          <option>по порядку</option>
-          <option>по возрастанию цен</option>
-          <option>по убыванию цен</option>
-          <option>по наименованию</option>
-        </select>
-
-        <select v-model="categoria" @change="onSelect()" class="filter">
-          <option v-for="categoria in productsCategories" :value="categoria">{{ categoria }}</option>
-        </select>
+          <select v-model="categoria" @change="onSelect()" class="filter">
+            <option value="all">Все</option>
+            <option v-for="categoria in productsCategories" :value="categoria">{{ categoria }}</option>
+          </select>
+        </div>
       </div>
 
       <div class="products-grid">
     
         <div v-for="product in sorting()"
         :key="product.id" class="product-container">
-          <div class="product">
+          <div class="product" @click="showData(product)">
             <div class="product-photo">
             <img :src="product.thumbnail" alt="">
             <button class="product-remove" @click="removeProduct(product)"></button>
@@ -78,11 +87,21 @@
           <textarea class="description" v-model="product.description" disabled/> 
           <b class="price">{{ product.price }} ₽ </b>
           <b class="rating"> &#9733; {{ product.rating }}  </b>
-          </div>
+        </div>
+          
         </div>
       </div>
-
     </div>
+
+    <modal name="modal">
+      <div class="modal-info">
+        Бренд: {{ modalData.brand }} / Модель: {{ modalData.title }} <br>
+        В наличии: {{ modalData.stock }} шт. / Скидка: {{ modalData.discountPercentage }} %<br>
+        Цена: {{ modalData.price }} р. / Рейтинг товара: {{ modalData.rating }}
+
+      </div>
+      <img class="modal-img" :src="modalData.thumbnail" alt="">
+    </modal>
 
   </div>
 </template>
@@ -105,10 +124,21 @@ export default {
       search: "",
       pageNumber: 0,
       productsCategories: [],
-      categoria: ""
+      categoria: "",
+      skip: 0,
+      productsInfo: [],
+      modalData: []
     };
   },
   methods: {
+    hide () {
+      this.$modal.hide('modal');
+    },
+    showData(product){
+      this.modalData = product
+      this.$modal.show('modal');
+      console.log(this.modalData)
+    },
     async onEnter(){
       const response = await fetch('https://dummyjson.com/products/search?q='+this.search);
       const data = await response.json();
@@ -117,17 +147,33 @@ export default {
       this.search = ""
     },
      async onSelect(){
-      const response = await fetch('https://dummyjson.com/products/category/'+this.categoria);
+      if(this.categoria == "all"){
+        const response = await fetch('https://dummyjson.com/products/');
+        const data = await response.json();
+        this.products = data.products;
+        console.log(this.products)
+      }else{
+        const response = await fetch('https://dummyjson.com/products/category/'+this.categoria);
+        const data = await response.json();
+        this.products = data.products;
+        console.log(this.products)
+      }
+    },
+    async nextPage(){
+      if(this.skip < 90){
+        this.skip = this.skip + 10;
+      }
+      const response = await fetch('https://dummyjson.com/products?limit=10&skip=' + this.skip);
       const data = await response.json();
       this.products = data.products;
-      console.log(this.products)
     },
-    paginateNum(){},
-    nextPage(){
-        this.pageNumber++;
-    },
-    prevPage(){
-      this.pageNumber--;
+    async prevPage(){
+      if(this.skip > 0){
+        this.skip = this.skip - 10;
+      }
+      const response = await fetch('https://dummyjson.com/products?limit=10&skip=' + this.skip);
+      const data = await response.json();
+      this.products = data.products;
     },
     createNewId() {
       let maxId = Math.max(...this.products.map((i) => i.id)); //Определяет максимальный id в массиве
@@ -138,9 +184,9 @@ export default {
       if (this.name && this.img && this.price) {
         this.products.push({
           id: this.createNewId(),
-          name: this.name,
-          img: this.img,
-          text: this.products.text,
+          title: this.name,
+          thumbnail: this.img,
+          description: this.products.text,
           price: this.price,
           basket: false,
         });
@@ -189,6 +235,9 @@ export default {
       }
     },
   },
+  mount () {
+    this.show()
+  },
   mounted() {
     this.products =
       JSON.parse(localStorage.getItem("products")) || this.products;
@@ -203,21 +252,16 @@ export default {
       return this.name && this.img && this.price;
     },
     pageCount(){
-      let l = this.products.length,
-          s = this.size;
+      let l = this.productsInfo.total,
+          s = this.productsInfo.limit;
       return Math.ceil(l/s);
-    },
-    paginatedData(){
-    const start = this.pageNumber * this.size,
-        end = start + this.size;
-      return this.products.slice(start, end);
     }
   },
   async created() {
-    const response = await fetch('https://dummyjson.com/products/search?q='+this.search);
+    const response = await fetch('https://dummyjson.com/products?limit=10&skip=' + this.skip);
     const data = await response.json();
     this.products = data.products;
-    console.log(this.products)
+    this.productsInfo = data;
 
     const responseCategories = await fetch('https://dummyjson.com/products/categories')
     const dataCategories = await responseCategories.json();
@@ -241,6 +285,21 @@ export default {
   .filters {
     //background: #7BAE73;
     height: 40px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .pagination{
+    position: relative;
+    width: 250px;
+    margin-top: 10px;
+  }
+  .search{
+    position: relative;
+    width: 300px;
+    margin-top: 10px;
+  }
+  .select-block{
+    display: flex;
   }
   .products-grid {
     display: flex;
@@ -539,5 +598,44 @@ p.required:after {
 }
 .error {
   color: #fc2d2d;
+}
+.modal-info {
+  position: absolute;
+  z-index: 1;
+  bottom: 0;
+  left: 0;
+  color: rgb(32, 31, 31);
+  background: rgba(255, 255, 255, 0.2);
+  padding: 5px;
+  opacity: 0.7;
+  backdrop-filter: blur(8px);
+}
+.modal-img {
+  position: relative;
+  height: 100%;
+  max-width: 100%;
+}
+@media (max-width: 760px) {
+  .products-grid{
+    position: relative;
+    top: 100px
+  }
+  
+  .filters {
+    flex-wrap: wrap;
+    height: 80px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .pagination{
+    position: relative;
+    width: 250px;
+    margin-top: 10px;
+  }
+  .search{
+    position: relative;
+    width: 300px;
+    margin-top: 10px;
+  }
 }
 </style>
