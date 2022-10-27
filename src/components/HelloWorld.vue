@@ -93,7 +93,7 @@
       </div>
     </div>
 
-    <modal name="modal">
+    <modal name="modal" :adaptive="true">
       <div class="modal-info">
         Бренд: {{ modalData.brand }} / Модель: {{ modalData.title }} <br>
         В наличии: {{ modalData.stock }} шт. / Скидка: {{ modalData.discountPercentage }} %<br>
@@ -137,26 +137,25 @@ export default {
     showData(product){
       this.modalData = product
       this.$modal.show('modal');
-      console.log(this.modalData)
     },
     async onEnter(){
       const response = await fetch('https://dummyjson.com/products/search?q='+this.search);
       const data = await response.json();
       this.products = data.products;
-      console.log(this.products)
       this.search = ""
+      this.skip=""
     },
      async onSelect(){
       if(this.categoria == "all"){
         const response = await fetch('https://dummyjson.com/products/');
         const data = await response.json();
         this.products = data.products;
-        console.log(this.products)
+        this.skip=""
       }else{
         const response = await fetch('https://dummyjson.com/products/category/'+this.categoria);
         const data = await response.json();
         this.products = data.products;
-        console.log(this.products)
+        this.skip=""
       }
     },
     async nextPage(){
@@ -239,12 +238,19 @@ export default {
     this.show()
   },
   mounted() {
-    this.products =
-      JSON.parse(localStorage.getItem("products")) || this.products;
+    this.selectedProducts = JSON.parse(localStorage.getItem("selectedProducts")) || this.selectedProducts;
+    this.products = JSON.parse(localStorage.getItem("products")) || this.products;
+    this.skip = JSON.parse(localStorage.getItem("skip")) || this.skip;
   },
   watch: {
+    selectedProducts(selectedProducts) {
+      localStorage.setItem("selectedProducts", JSON.stringify(selectedProducts));
+    },
     products(products) {
       localStorage.setItem("products", JSON.stringify(products));
+    },
+    skip(skip) {
+      localStorage.setItem("skip", JSON.stringify(skip));
     },
   },
   computed: {
@@ -260,17 +266,17 @@ export default {
   async created() {
     const response = await fetch('https://dummyjson.com/products?limit=10&skip=' + this.skip);
     const data = await response.json();
-    this.products = data.products;
     this.productsInfo = data;
 
     const responseCategories = await fetch('https://dummyjson.com/products/categories')
     const dataCategories = await responseCategories.json();
     this.productsCategories = dataCategories;
-    console.log(this.productsCategories)
+    if(products.length == 0){
+      this.products = data.products;
+    }
   }
 };
 </script>
-
 
 <style lang="scss">
 @import "../index.scss";
